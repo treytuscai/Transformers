@@ -94,7 +94,14 @@ def make_addition_samples_and_labels(expressionLists, char2ind_map):
     y_int: Python list of list of int. len(x_int)=len(y_int).
         The int-coded labels/targets for each addition expression (i.e. the next chars).
     '''
-    pass
+    x_int, y_int = [], []
+
+    for expression in expressionLists:
+        expr_indices = [char2ind_map[ch] for ch in expression]
+        x_int.append(expr_indices[:-1])
+        y_int.append(expr_indices[1:])
+
+    return x_int, y_int
 
 
 def make_ind2char_mapping(char2ind_map):
@@ -110,7 +117,7 @@ def make_ind2char_mapping(char2ind_map):
     Dictionary mapping int → str.
         Maps ints back into the original chars in the vocabulary.
     '''
-    pass
+    return {v: k for k, v in char2ind_map.items()}
 
 
 def convert_int2str(x_int, ind2char_map):
@@ -130,7 +137,7 @@ def convert_int2str(x_int, ind2char_map):
         A list of addition expressions, where each expression is represented as a list of characters (str).
         Example: ['4', '7', '+', '5', '1', '=', '9', '8', '.']
     '''
-    pass
+    return [[ind2char_map[i] for i in expr] for expr in x_int]
 
 
 def make_train_val_split(x, y, val_prop=0.1):
@@ -156,7 +163,20 @@ def make_train_val_split(x, y, val_prop=0.1):
     y_val: tf.constant. tf.int32s.
         Validation set labels.
     '''
-    pass
+
+    val_size = int(len(x) * val_prop)
+    train_size = len(x) - val_size
+
+    x = tf.constant(x, dtype=tf.int32)
+    y = tf.constant(y, dtype=tf.int32)
+
+    x_train = x[:train_size]
+    y_train = y[:train_size]
+
+    x_val = x[train_size:]
+    y_val = y[train_size:]
+
+    return x_train, y_train, x_val, y_val
 
 
 def split_sum_and_answer(x_str):
@@ -178,7 +198,14 @@ def split_sum_and_answer(x_str):
         All characters to the right of the = in each expression, represented as single strings.
         Example: '98.'
     '''
-    pass
+    lhs, rhs = [], []
+
+    for expression in x_str:
+        eq_idx = expression.index('=')
+        lhs.append(''.join(expression[:eq_idx+1]))
+        rhs.append(''.join(expression[eq_idx+1:]))
+
+    return lhs, rhs
 
 
 def get_addition_dataset(N, max_operand_digits=2, seed=1, val_prop=0.1):
@@ -209,4 +236,8 @@ def get_addition_dataset(N, max_operand_digits=2, seed=1, val_prop=0.1):
     Dictionary mapping str → int.
         Maps each char to its position in the vocabulary.
     '''
-    pass
+    expressions, char2ind_map = make_addition_expressions(N, max_operand_digits, seed)
+    x_int, y_int = make_addition_samples_and_labels(expressions, char2ind_map)
+    x_train, y_train, x_val, y_val = make_train_val_split(x_int, y_int, val_prop)
+
+    return x_train, y_train, x_val, y_val, char2ind_map
