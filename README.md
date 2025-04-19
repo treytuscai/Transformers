@@ -1,2 +1,2 @@
-# Transformers
-Build and train transformer networks from scratch to generate text and solve arithmetic tasks, highlighting core concepts like attention, positional encoding, and generative modeling.
+# 🔁 Transformers
+Implements a GPT-style Transformer model from scratch using our modular deep learning library, [![DeepNeuralLib](https://img.shields.io/badge/Repo-DeepNeuralLib-blue?logo=github)](https://github.com/treytuscai/DeepNeuralLib). Trains small transformers to perform arithmetic tasks and larger ones to generate Shakespearean text, showcasing attention mechanisms and positional encoding.
