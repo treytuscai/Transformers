@@ -29,7 +29,12 @@ class Embedding(layers.Layer):
         1. Call and pass in relevant information into the superclass constructor.
         2. Initialize the layer's parameters.
         '''
-        pass
+        super().__init__(layer_name=name,
+                         activation='linear',
+                         prev_layer_or_block=prev_layer_or_block,
+                         do_batch_norm=False,
+                         do_layer_norm=True)
+        self.init_params(input_dim=input_dim, embed_dim=embed_dim)
 
     def has_wts(self):
         '''Returns whether the Embedding layer has weights. It does...'''
@@ -49,6 +54,8 @@ class Embedding(layers.Layer):
         - Remember to turn off the bias.
         - Use He initialization.
         '''
+        self.wts = tf.Variable(tf.random.normal([input_dim, embed_dim], stddev=1.0 / tf.sqrt(float(embed_dim))))
+        self.b = None
 
     def compute_net_input(self, x):
         '''Computes the net input for the current Embedding layer.
@@ -67,7 +74,7 @@ class Embedding(layers.Layer):
         - This layer does NOT use lazy initialization.
         - The presence of the time dimension should not affect your code compared to if it were not there.
         '''
-        pass
+        return tf.gather(self.wts, x)
 
     def __str__(self):
         '''This layer's "ToString" method. Feel free to customize if you want to make the layer description fancy,
