@@ -38,7 +38,31 @@ class QueryKeyValueBlock(block.Block):
         1. Call and pass in relevant information into the superclass constructor.
         2. Assemble layers in the block.
         '''
-        pass
+        super().__init__(blockname=blockname, prev_layer_or_block=prev_layer_or_block)
+
+        self.q_layer = Dense(name=f"{blockname}_query",
+                             units=units,
+                             activation='linear',
+                             prev_layer_or_block=prev_layer_or_block,
+                             wt_init='he',
+                             do_batch_norm=False,
+                             do_layer_norm=True)
+        
+        self.k_layer = Dense(name=f"{blockname}_key",
+                             units=units,
+                             activation='linear',
+                             prev_layer_or_block=prev_layer_or_block,
+                             wt_init='he',
+                             do_batch_norm=False,
+                             do_layer_norm=True)
+
+        self.v_layer = Dense(name=f"{blockname}_value",
+                             units=units,
+                             activation='linear',
+                             prev_layer_or_block=prev_layer_or_block,
+                             wt_init='he',
+                             do_batch_norm=False,
+                             do_layer_norm=True)
 
     def __call__(self, query_input, key_input, value_input):
         '''Forward pass through the QKV Block with activations that should represent the input to respective QKV layers.
@@ -61,7 +85,10 @@ class QueryKeyValueBlock(block.Block):
         tf.constant. tf.float32s. shape=(B, T, H).
             Activations produced by the value layer.
         '''
-        pass
+        x_q = self.q_layer(query_input)
+        x_k = self.k_layer(key_input)
+        x_v = self.v_layer(value_input)
+        return x_q, x_k, x_v
 
 
 class AttentionBlock(block.Block):

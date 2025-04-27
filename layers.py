@@ -192,9 +192,15 @@ class Layer:
         set it to the shape of the layer's activation, represented as a Python list. You can convert something into a
         Python list by calling the `list` function — e.g. `list(blah)`.
         '''
+        if self.do_layer_norm:
+            if self.ln_gain is None or self.ln_bias is None:
+                self.init_layernorm_params(x)
+            x = self.compute_layer_norm(x)
+
         net_in = self.compute_net_input(x)
         if self.do_batch_norm and self.bn_mean is not None:
             net_in = self.compute_batch_norm(net_in)
+        
         net_act = self.compute_net_activation(net_in)
 
         if self.output_shape is None:
@@ -313,7 +319,7 @@ class Layer:
 
         (Ignore until later in the semester)
         '''
-        pass
+        return self.do_layer_norm
 
     def init_layernorm_params(self, x):
         '''Initializes the parameters for layer normalization if layer normalization is enabled.
@@ -331,6 +337,15 @@ class Layer:
         '''
         if not self.do_layer_norm:
             return
+        
+        param_shape = [1] * (len(x.shape) - 1) + [x.shape[-1]]
+        
+        # Layer norm parameters
+        self.ln_gain = tf.Variable(tf.ones(param_shape), trainable=True)
+        self.ln_bias = tf.Variable(tf.zeros(param_shape), trainable=True)
+
+        # Turn off normal bias in the layer
+        self.b = tf.Variable(0.0, trainable=False)
 
     def compute_layer_norm(self, x, eps=0.001):
         '''Computes layer normalization for the input tensor. Layer normalization normalizes the activations of the
@@ -350,7 +365,11 @@ class Layer:
         tf.constant. tf.float32s. shape=(B, M).
             The normalized tensor with the same shape as the input tensor.
         '''
-        pass
+        layer_mean = tf.reduce_mean(x, axis=-1, keepdims=True)
+        layer_stdev = tf.math.reduce_std(x, axis=-1, keepdims=True)
+        normalized = (x - layer_mean) / (layer_stdev + eps)
+
+        return self.ln_gain * normalized + self.ln_bias
 
     def gelu(self, net_in):
         '''Applies the Gaussian Error Linear Unit (GELU) activation function.
