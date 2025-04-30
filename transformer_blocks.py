@@ -194,12 +194,10 @@ class AttentionBlock(block.Block):
 
         # step 3: apply causal mask
         if self.causal:
-            # Create a causal mask without tril
+            # tril was causing issues so just gonna index with lower triangular matrix
             causal_mask = tf.linalg.band_part(tf.ones((self.T, self.T)), -1, 0)
-            print("causal mask shape is: ", causal_mask.shape)
             # reshape to (1, 1, T, T) for broadcasting over B and A
             causal_mask = tf.reshape(causal_mask, (1, 1, self.T, self.T))
-            print("causal mask shape is: ", causal_mask.shape)
             # replace 0s (future positions) with -1e9, 1s with 0.0
             neg_inf = tf.constant(-1e9, dtype=tf.float32)
             a2 = tf.where(causal_mask == 1, a1, neg_inf)
