@@ -175,20 +175,27 @@ class AttentionBlock(block.Block):
             self.batchsize, self.T, self.A, self.H//self.A))  # (B,T,A,H/A)
         values = tf.reshape(values, shape=(
             self.batchsize, self.T, self.A, self.H//self.A))  # (B,T,A,H/A)
-
+        values_transposed = tf.transpose(
+            values, perm=[0, 2, 1, 3])  # (B,A,T,H/A)
+        print("queries shape is: ", queries.shape, "and should be (B,T,A,H/A)")
         # transpose last two dims of keys
         keys_transposed = tf.transpose(
-            keys, perm=[0, 1, 3, 2])  # (B,T,A,H/A)
+            keys, perm=[0, 2, 3, 1])  # (B,T,H/A,A)
+        queries_transposed = tf.transpose(
+            queries, perm=[0, 2, 1, 3])
 
         # compute match scores
-        a1 = (queries @ keys_transposed) * self.atn_gain
+        a1 = tf.matmul(queries_transposed, keys_transposed) * self.atn_gain
+        print("a1 shape is: ", a1.shape, "and should be (B,A,T,T)")
 
         # step 3: apply causal mask
         if self.causal:
-            # tril creates shape (T, T)
-            causal_mask = tf_util.tril(tf.ones((self.T, self.T)))  # (T, T)
+            # Create a causal mask without tril
+            causal_mask = tf.linalg.band_part(tf.ones((self.T, self.T)), -1, 0)
+            print("causal mask shape is: ", causal_mask.shape)
             # reshape to (1, 1, T, T) for broadcasting over B and A
             causal_mask = tf.reshape(causal_mask, (1, 1, self.T, self.T))
+            print("causal mask shape is: ", causal_mask.shape)
             # replace 0s (future positions) with -1e9, 1s with 0.0
             neg_inf = tf.constant(-1e9, dtype=tf.float32)
             a2 = tf.where(causal_mask == 1, a1, neg_inf)
@@ -205,7 +212,8 @@ class AttentionBlock(block.Block):
         print("a4 shape is: ", a4.shape, "and should be (B,A,T,T)")
 
         # step 6: unlock values of V
-        v_unlock = a4 @ values  # (B,A,T,H/A)
+        print("values shape is: ", values.shape,)
+        v_unlock = a4 @ values_transposed  # (B,A,T,H/A)
         print("v_unlock shape is: ", v_unlock.shape,
               "and should be (B,A,T,H/A)")
 
