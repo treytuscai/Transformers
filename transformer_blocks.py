@@ -131,9 +131,13 @@ class AttentionBlock(block.Block):
         self.H = units
         self.A = num_heads
         self.causal = causal
+        self.layers = []
         # 3.
         self.dropout_layer = Dropout(
-            name='dropout1', rate=dropout_rate, prev_layer_or_block=prev_layer_or_block)
+            name='dropout1',
+            rate=dropout_rate,
+            prev_layer_or_block=prev_layer_or_block)
+        self.layers.append(self.dropout_layer)
         # 4.
         # H may be something else sice its H_qkv but i think thats the same as H_qkv I DONT KNOW WHERE TO GET H_qkv other than in the qkv passed in
         self.atn_gain = tf.sqrt(self.H/self.A)**(-1)
@@ -169,6 +173,8 @@ class AttentionBlock(block.Block):
         self.batchsize = queries.shape[0]
         self.T = queries.shape[1]
         self.H_qkv = queries.shape[2]
+
+        # the notes have us putting it as (B,T,A,H/A) but then asks for (B,A,T,H/A) later so it is a bit convoluted here
         queries = tf.reshape(queries, shape=(
             self.batchsize, self.T, self.A, self.H//self.A))  # (B,T,A,H/A)
         keys = tf.reshape(keys, shape=(
@@ -177,7 +183,6 @@ class AttentionBlock(block.Block):
             self.batchsize, self.T, self.A, self.H//self.A))  # (B,T,A,H/A)
         values_transposed = tf.transpose(
             values, perm=[0, 2, 1, 3])  # (B,A,T,H/A)
-        print("queries shape is: ", queries.shape, "and should be (B,T,A,H/A)")
         # transpose last two dims of keys
         keys_transposed = tf.transpose(
             keys, perm=[0, 2, 3, 1])  # (B,T,H/A,A)
@@ -186,7 +191,6 @@ class AttentionBlock(block.Block):
 
         # compute match scores
         a1 = tf.matmul(queries_transposed, keys_transposed) * self.atn_gain
-        print("a1 shape is: ", a1.shape, "and should be (B,A,T,T)")
 
         # step 3: apply causal mask
         if self.causal:
@@ -206,23 +210,17 @@ class AttentionBlock(block.Block):
 
         # step 4 compute A3
         a3 = tf.nn.softmax(a2, axis=-1)  # (B,A,T,T)
-        print("a3 shape is: ", a3.shape, "and should be (B,A,T,T)")
         # step 5 apply dropout
         a4 = self.dropout_layer(a3)  # (B,A,T,T)
-        print("a4 shape is: ", a4.shape, "and should be (B,A,T,T)")
 
         # step 6: unlock values of V
-        print("values shape is: ", values.shape,)
         v_unlock = a4 @ values_transposed  # (B,A,T,H/A)
-        print("v_unlock shape is: ", v_unlock.shape,
-              "and should be (B,A,T,H/A)")
 
         # step 7: convert shapes to original
         v_unlock = tf.transpose(v_unlock, perm=[0, 2, 1, 3])  # (B,T,A,H/A)
 
         v_unlock = tf.reshape(v_unlock, shape=(
             self.batchsize, self.T, self.H))  # (B,T,H)
-        print("v_unlock shape is: ", v_unlock.shape, "and should be (B,T,H)")
         return v_unlock
 
 
