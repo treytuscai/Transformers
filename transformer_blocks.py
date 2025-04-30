@@ -13,6 +13,7 @@ from tf_util import tril
 
 class QueryKeyValueBlock(block.Block):
     '''Block that encapsulates the Dense layers that generate the queries, keys, and values.'''
+
     def __init__(self, blockname, units, prev_layer_or_block):
         '''QueryKeyValueBlock constructor
 
@@ -47,7 +48,7 @@ class QueryKeyValueBlock(block.Block):
                              wt_init='he',
                              do_batch_norm=False,
                              do_layer_norm=True)
-        
+
         self.k_layer = Dense(name=f"{blockname}_key",
                              units=units,
                              activation='linear',
@@ -93,6 +94,7 @@ class QueryKeyValueBlock(block.Block):
 
 class AttentionBlock(block.Block):
     '''Block that encapsulates the fundamental attention mechanism.'''
+
     def __init__(self, blockname, num_heads, units, prev_layer_or_block, dropout_rate=0.1, causal=True):
         '''AttentionBlock constructor
 
@@ -122,7 +124,19 @@ class AttentionBlock(block.Block):
         (e.g. as self.gain) so that you can use it during the forward pass. You have all the info here that is needed
         to compute the gain.
         '''
-        pass
+
+        # 1.
+        super().__init__(blockname=blockname, prev_layer_or_block=prev_layer_or_block)
+        # 2.
+        self.H = units
+        self.A = num_heads
+        self.causal = causal
+        # 3.
+        self.dropout_layer = Dropout(
+            name='dropout1', rate=dropout_rate, prev_layer_or_block=prev_layer_or_block)
+        # 4.
+        # H may be something else sice its H_qkv but i think thats the same as H_qkv I DONT KNOW WHERE TO GET H_qkv other than in the qkv passed in
+        self.atn_gain = tf.sqrt(self.H/self.A)**(-1)
 
     def __call__(self, queries, keys, values):
         '''Forward pass through the attention block with activations from the query, key, and value layers.
@@ -152,7 +166,56 @@ class AttentionBlock(block.Block):
         6. Don't forget to incorporate the causal mask to implement causal attention (if that option is turned on).
         The function `tril` from tf_util should be very helpful.11
         '''
-        pass
+        self.batchsize = queries.shape[0]
+        self.T = queries.shape[1]
+        self.H_qkv = queries.shape[2]
+        queries = tf.reshape(queries, shape=(
+            self.batchsize, self.T, self.A, self.H//self.A))  # (B,T,A,H/A)
+        keys = tf.reshape(keys, shape=(
+            self.batchsize, self.T, self.A, self.H//self.A))  # (B,T,A,H/A)
+        values = tf.reshape(values, shape=(
+            self.batchsize, self.T, self.A, self.H//self.A))  # (B,T,A,H/A)
+
+        # transpose last two dims of keys
+        keys_transposed = tf.transpose(
+            keys, perm=[0, 1, 3, 2])  # (B,T,A,H/A)
+
+        # compute match scores
+        a1 = (queries @ keys_transposed) * self.atn_gain
+
+        # step 3: apply causal mask
+        if self.causal:
+            # tril creates shape (T, T)
+            causal_mask = tf_util.tril(tf.ones((self.T, self.T)))  # (T, T)
+            # reshape to (1, 1, T, T) for broadcasting over B and A
+            causal_mask = tf.reshape(causal_mask, (1, 1, self.T, self.T))
+            # replace 0s (future positions) with -1e9, 1s with 0.0
+            neg_inf = tf.constant(-1e9, dtype=tf.float32)
+            a2 = tf.where(causal_mask == 1, a1, neg_inf)
+            print(a2.shape)
+
+        else:
+            a2 = a1
+
+        # step 4 compute A3
+        a3 = tf.nn.softmax(a2, axis=-1)  # (B,A,T,T)
+        print("a3 shape is: ", a3.shape, "and should be (B,A,T,T)")
+        # step 5 apply dropout
+        a4 = self.dropout_layer(a3)  # (B,A,T,T)
+        print("a4 shape is: ", a4.shape, "and should be (B,A,T,T)")
+
+        # step 6: unlock values of V
+        v_unlock = a4 @ values  # (B,A,T,H/A)
+        print("v_unlock shape is: ", v_unlock.shape,
+              "and should be (B,A,T,H/A)")
+
+        # step 7: convert shapes to original
+        v_unlock = tf.transpose(v_unlock, perm=[0, 2, 1, 3])  # (B,T,A,H/A)
+
+        v_unlock = tf.reshape(v_unlock, shape=(
+            self.batchsize, self.T, self.H))  # (B,T,H)
+        print("v_unlock shape is: ", v_unlock.shape, "and should be (B,T,H)")
+        return v_unlock
 
 
 class MultiHeadAttentionBlock(block.Block):
@@ -164,6 +227,7 @@ class MultiHeadAttentionBlock(block.Block):
 
     NOTE: The Dense layer in this block (according to the paper) does NOT use layer norm.
     '''
+
     def __init__(self, blockname, num_heads, units, prev_layer_or_block, dropout_rate=0.1, causal=True):
         '''MultiHeadAttentionBlock constructor
 
@@ -191,7 +255,6 @@ class MultiHeadAttentionBlock(block.Block):
         2. Create all the layers and blocks.
         '''
         pass
-
 
     def __call__(self, x):
         '''Forward pass through the MultiHead Attention Block.
@@ -224,6 +287,7 @@ class MLPBlock(block.Block):
     ----------------
     - Uses the linear/identity activation function, no layernorm
     '''
+
     def __init__(self, blockname, units, prev_layer_or_block, exp_factor=4, dropout_rate=0.1):
         '''MLPBlock constructor
 
@@ -266,6 +330,7 @@ class MLPBlock(block.Block):
 
 class TransformerBlock(block.Block):
     '''The Transformer Block, composed of a single MultiHeadAtention Block followed by a single MLP Block.'''
+
     def __init__(self, blockname, units, num_heads, prev_layer_or_block, dropout_rate=0.1):
         '''TransformerBlock constructor
 
@@ -312,6 +377,7 @@ class PositionalEncodingBlock(block.Block):
 
     PositionalEncoding → Dropout
     '''
+
     def __init__(self, blockname, embed_dim, prev_layer_or_block, dropout_rate=0.1):
         '''PositionalEncodingBlock constructor
 
