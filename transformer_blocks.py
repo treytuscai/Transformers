@@ -357,7 +357,41 @@ class MLPBlock(block.Block):
         1. Call and pass in relevant information into the superclass constructor.
         2. Create all the layers and blocks.
         '''
-        pass
+        super().__init__(blockname=blockname, prev_layer_or_block=prev_layer_or_block)
+        expanded_units = units * exp_factor
+        self.layers = []
+
+        # Dense Layer: GELU + Layernorm
+        self.dense1 = Dense(
+            name=f"{blockname}_dense1",
+            units=expanded_units,
+            activation='gelu',
+            prev_layer_or_block=prev_layer_or_block,
+            wt_init='he',
+            do_batch_norm=False,
+            do_layer_norm=True
+        )
+        self.layers.append(self.dense1)
+
+        # Dense Layer: Linear (no Layernorm)
+        self.dense2 = Dense(
+            name=f"{blockname}_dense2",
+            units=units,
+            activation='linear',
+            prev_layer_or_block=self.dense1,
+            wt_init='he',
+            do_batch_norm=False,
+            do_layer_norm=False
+        )
+        self.layers.append(self.dense2)
+
+        # Dropout Layer
+        self.dropout = Dropout(
+            name=f"{blockname}_dropout",
+            rate=dropout_rate,
+            prev_layer_or_block=self.dense2
+        )
+        self.layers.append(self.dropout)
 
     def __call__(self, x):
         '''Forward pass through the MLPBlock with the data samples `x`.
@@ -372,7 +406,10 @@ class MLPBlock(block.Block):
         tf.constant. tf.float32s. shape=(B, T, H).
             The output netActs
         '''
-        pass
+        x = self.dense1(x)
+        x = self.dense2(x)
+        x = self.dropout(x)
+        return x
 
 
 class TransformerBlock(block.Block):

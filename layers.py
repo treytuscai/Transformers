@@ -158,8 +158,10 @@ class Layer:
 
         if self.act_fun_name == 'relu':
             return tf.nn.relu(net_in)
-        if self.act_fun_name == 'linear':
+        elif self.act_fun_name == 'linear':
             return net_in
+        elif self.act_fun_name == 'gelu':
+            return self.gelu(net_in)
         elif self.act_fun_name == 'softmax':
             return tf.nn.softmax(net_in)
         else:
@@ -386,7 +388,7 @@ class Layer:
         tf.constant. shape=(B, M)
             Output tensor after applying the GELU activation function.
         '''
-        pass
+        return 0.5 * net_in * (1 + tf.tanh(tf.sqrt(2 / pi) * (net_in + 0.044715 * tf.pow(net_in, 3))))
 
 
 class Dense(Layer):
