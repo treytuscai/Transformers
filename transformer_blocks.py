@@ -201,7 +201,6 @@ class AttentionBlock(block.Block):
             # replace 0s (future positions) with -1e9, 1s with 0.0
             neg_inf = tf.constant(-1e9, dtype=tf.float32)
             a2 = tf.where(causal_mask == 1, a1, neg_inf)
-            print(a2.shape)
 
         else:
             a2 = a1
@@ -258,7 +257,47 @@ class MultiHeadAttentionBlock(block.Block):
         1. Call and pass in relevant information into the superclass constructor.
         2. Create all the layers and blocks.
         '''
-        pass
+        super().__init__(blockname=blockname, prev_layer_or_block=prev_layer_or_block)
+        self.layers = []
+
+        # QueryKeyValueBlock
+        self.qkv_block = QueryKeyValueBlock(
+            blockname=f"{blockname}_qkv",
+            units=units,
+            prev_layer_or_block=prev_layer_or_block
+        )
+        self.layers.append(self.qkv_block)
+
+        # AttentionBlock 
+        self.attn_block = AttentionBlock(
+            blockname=f"{blockname}_attn",
+            num_heads=num_heads,
+            units=units,
+            prev_layer_or_block=self.qkv_block,
+            dropout_rate=dropout_rate,
+            causal=causal
+        )
+        self.layers.append(self.attn_block)
+
+        # Dense
+        self.out_proj = Dense(
+            name=f"{blockname}_out_proj",
+            units=units,
+            activation='linear',
+            prev_layer_or_block=self.attn_block,
+            wt_init='he',
+            do_batch_norm=False,
+            do_layer_norm=False
+        )
+        self.layers.append(self.out_proj)
+
+        # Dropout
+        self.final_dropout = Dropout(
+            name=f"{blockname}_dropout",
+            rate=dropout_rate,
+            prev_layer_or_block=self.out_proj
+        )
+        self.layers.append(self.final_dropout)
 
     def __call__(self, x):
         '''Forward pass through the MultiHead Attention Block.
@@ -273,7 +312,11 @@ class MultiHeadAttentionBlock(block.Block):
         tf.constant. tf.float32s. shape=(B, T, H).
             The output netActs
         '''
-        pass
+        queries, keys, values = self.qkv_block(x, x, x)
+        attn_output = self.attn_block(queries, keys, values)
+        projected = self.out_proj(attn_output)
+        output = self.final_dropout(projected)
+        return output
 
 
 class MLPBlock(block.Block):
