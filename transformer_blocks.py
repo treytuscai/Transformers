@@ -436,7 +436,27 @@ class TransformerBlock(block.Block):
         1. Call and pass in relevant information into the superclass constructor.
         2. Create all the layers and blocks.
         '''
-        pass
+        super().__init__(blockname=blockname, prev_layer_or_block=prev_layer_or_block)
+        self.layers = []
+
+        # MultiHeadAttention Block
+        self.attn_block = MultiHeadAttentionBlock(
+            blockname=f"{blockname}_attn",
+            units=units,
+            num_heads=num_heads,
+            prev_layer_or_block=prev_layer_or_block,
+            dropout_rate=dropout_rate
+        )
+        self.layers.append(self.attn_block)
+
+        # MLP Block
+        self.mlp_block = MLPBlock(
+            blockname=f"{blockname}_mlp",
+            units=units,
+            prev_layer_or_block=self.attn_block,
+            dropout_rate=dropout_rate
+        )
+        self.layers.append(self.mlp_block)
 
     def __call__(self, x):
         '''Forward pass through the Transformer block with the data samples `x`.
@@ -453,7 +473,13 @@ class TransformerBlock(block.Block):
 
         NOTE: Don't forget the residual connections that allows the input to skip to the end of each block.
         '''
-        pass
+        attn_out = self.attn_block(x)
+        x = x + attn_out
+
+        mlp_out = self.mlp_block(x)
+        x = x + mlp_out
+
+        return x
 
 
 class PositionalEncodingBlock(block.Block):
