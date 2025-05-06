@@ -507,7 +507,24 @@ class PositionalEncodingBlock(block.Block):
         1. Call and pass in relevant information into the superclass constructor.
         2. Create all the layers.
         '''
-        pass
+        super().__init__(blockname=blockname, prev_layer_or_block=prev_layer_or_block)
+        self.layers = []
+
+        # Positional Encoding Layer
+        self.pos_encoding = PositionalEncoding(
+            name=f"{blockname}_pos_encoding",
+            embed_dim=embed_dim,
+            prev_layer_or_block=prev_layer_or_block
+        )
+        self.layers.append(self.pos_encoding)
+
+        # Dropout Layer
+        self.dropout = Dropout(
+            name=f"{blockname}_dropout",
+            rate=dropout_rate,
+            prev_layer_or_block=self.pos_encoding
+        )
+        self.layers.append(self.dropout)
 
     def __call__(self, x):
         '''Forward pass through the block with the data samples `x`.
@@ -522,4 +539,6 @@ class PositionalEncodingBlock(block.Block):
         tf.constant. tf.float32s. shape=(B, T, H).
             The output netActs
         '''
-        pass
+        x = self.pos_encoding(x)
+        x = self.dropout(x)
+        return x

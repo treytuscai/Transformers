@@ -107,7 +107,7 @@ class PositionalEncoding(layers.Layer):
                          activation='linear',
                          prev_layer_or_block=prev_layer_or_block,
                          do_batch_norm=False,
-                         do_layer_norm=True)
+                         do_layer_norm=False)
 
         self.embed_dim = embed_dim
         self.pos_encoding = None
