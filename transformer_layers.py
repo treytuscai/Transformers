@@ -103,7 +103,17 @@ class PositionalEncoding(layers.Layer):
         2. Print a warning/error if the embedding dimension (H) is not even, since this layer's sin/cos coding requires
         an even split.
         '''
-        pass
+        super().__init__(layer_name=name,
+                         activation='linear',
+                         prev_layer_or_block=prev_layer_or_block,
+                         do_batch_norm=False,
+                         do_layer_norm=True)
+
+        self.embed_dim = embed_dim
+        self.pos_encoding = None
+
+        if embed_dim % 2 != 0:
+            print(f"Warning: Embedding dimension {embed_dim} is not even.")
 
     def create_position_encoding(self, embed_dim, seq_len):
         '''Creates a positional encoding tensor using the sin/cos scheme for a sequence of length `seq_len` tokens
@@ -126,7 +136,22 @@ class PositionalEncoding(layers.Layer):
         - The provided `interleave_cols` function should be helpful, as should be tf.expand_dims.
         - To allow TensorFlow track the flow of gradients, you should implement this with 100% TensorFlow and no loops.
         '''
-        pass
+        # Position Indices
+        t_positions = tf.range(seq_len, dtype=tf.float32)[:, tf.newaxis]
+        
+        # Neuron Indices (H/2) -> only for even
+        j_indices = tf.range(0, embed_dim, 2, dtype=tf.float32)
+
+        # Frequency Term
+        omega_j = 1.0 / tf.pow(10000.0, j_indices / embed_dim) # 1 / 10000^(j / H)
+
+        # Sin and Cos
+        sin_part = tf.sin(t_positions * omega_j)
+        cos_part = tf.cos(t_positions * omega_j)
+
+        # Interleave
+        pos_encoding = interleave_cols(sin_part, cos_part)[tf.newaxis, :]
+        return pos_encoding
 
     def compute_net_input(self, x):
         '''Computes the net input for the current PositionalEncoding layer, which is the sum of the input with the
@@ -145,7 +170,10 @@ class PositionalEncoding(layers.Layer):
         NOTE: This layer uses lazy initialization. This means that if the position code has not been defined yet,
         we call `create_position_encoding` to create it and set the result to the instance variable.
         '''
-        pass
+        if self.pos_encoding is None:
+            self.pos_encoding = self.create_position_encoding(self.embed_dim, tf.shape(x)[1])
+
+        return x + self.pos_encoding
 
     def __str__(self):
         '''This layer's "ToString" method. Feel free to customize if you want to make the layer description fancy,
