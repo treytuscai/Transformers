@@ -33,7 +33,7 @@ class Embedding(layers.Layer):
                          activation='linear',
                          prev_layer_or_block=prev_layer_or_block,
                          do_batch_norm=False,
-                         do_layer_norm=True)
+                         do_layer_norm=False)
         self.init_params(input_dim=input_dim, embed_dim=embed_dim)
 
     def has_wts(self):
