@@ -41,29 +41,32 @@ class QueryKeyValueBlock(block.Block):
         '''
         super().__init__(blockname=blockname, prev_layer_or_block=prev_layer_or_block)
 
-        self.q_layer = Dense(name=f"{blockname}_query",
+        self.q_layer = Dense(name=f"{blockname}/dense_q",
                              units=units,
                              activation='linear',
                              prev_layer_or_block=prev_layer_or_block,
                              wt_init='he',
                              do_batch_norm=False,
                              do_layer_norm=True)
+        self.layers.append(self.q_layer)
 
-        self.k_layer = Dense(name=f"{blockname}_key",
+        self.k_layer = Dense(name=f"{blockname}/dense_k",
                              units=units,
                              activation='linear',
                              prev_layer_or_block=prev_layer_or_block,
                              wt_init='he',
                              do_batch_norm=False,
                              do_layer_norm=True)
+        self.layers.append(self.k_layer)
 
-        self.v_layer = Dense(name=f"{blockname}_value",
+        self.v_layer = Dense(name=f"{blockname}/dense_v",
                              units=units,
                              activation='linear',
                              prev_layer_or_block=prev_layer_or_block,
                              wt_init='he',
                              do_batch_norm=False,
                              do_layer_norm=True)
+        self.layers.append(self.v_layer)
 
     def __call__(self, query_input, key_input, value_input):
         '''Forward pass through the QKV Block with activations that should represent the input to respective QKV layers.
@@ -131,10 +134,10 @@ class AttentionBlock(block.Block):
         self.H = units
         self.A = num_heads
         self.causal = causal
-        self.layers = []
+
         # 3.
         self.dropout_layer = Dropout(
-            name='dropout1',
+            name=f'{blockname}/dropout',
             rate=dropout_rate,
             prev_layer_or_block=prev_layer_or_block)
         self.layers.append(self.dropout_layer)
@@ -258,11 +261,10 @@ class MultiHeadAttentionBlock(block.Block):
         2. Create all the layers and blocks.
         '''
         super().__init__(blockname=blockname, prev_layer_or_block=prev_layer_or_block)
-        self.layers = []
 
         # QueryKeyValueBlock
         self.qkv_block = QueryKeyValueBlock(
-            blockname=f"{blockname}_qkv",
+            blockname=f"{blockname}/qkv_block",
             units=units,
             prev_layer_or_block=prev_layer_or_block
         )
@@ -270,7 +272,7 @@ class MultiHeadAttentionBlock(block.Block):
 
         # AttentionBlock 
         self.attn_block = AttentionBlock(
-            blockname=f"{blockname}_attn",
+            blockname=f"{blockname}/attention",
             num_heads=num_heads,
             units=units,
             prev_layer_or_block=self.qkv_block,
@@ -281,7 +283,7 @@ class MultiHeadAttentionBlock(block.Block):
 
         # Dense
         self.out_proj = Dense(
-            name=f"{blockname}_out_proj",
+            name=f"{blockname}/dense_1",
             units=units,
             activation='linear',
             prev_layer_or_block=self.attn_block,
@@ -293,7 +295,7 @@ class MultiHeadAttentionBlock(block.Block):
 
         # Dropout
         self.final_dropout = Dropout(
-            name=f"{blockname}_dropout",
+            name=f"{blockname}/dropout",
             rate=dropout_rate,
             prev_layer_or_block=self.out_proj
         )
@@ -359,11 +361,10 @@ class MLPBlock(block.Block):
         '''
         super().__init__(blockname=blockname, prev_layer_or_block=prev_layer_or_block)
         expanded_units = units * exp_factor
-        self.layers = []
 
         # Dense Layer: GELU + Layernorm
         self.dense1 = Dense(
-            name=f"{blockname}_dense1",
+            name=f"{blockname}/dense_0",
             units=expanded_units,
             activation='gelu',
             prev_layer_or_block=prev_layer_or_block,
@@ -375,7 +376,7 @@ class MLPBlock(block.Block):
 
         # Dense Layer: Linear (no Layernorm)
         self.dense2 = Dense(
-            name=f"{blockname}_dense2",
+            name=f"{blockname}/dense_1",
             units=units,
             activation='linear',
             prev_layer_or_block=self.dense1,
@@ -387,7 +388,7 @@ class MLPBlock(block.Block):
 
         # Dropout Layer
         self.dropout = Dropout(
-            name=f"{blockname}_dropout",
+            name=f"{blockname}/dropout",
             rate=dropout_rate,
             prev_layer_or_block=self.dense2
         )
@@ -437,11 +438,10 @@ class TransformerBlock(block.Block):
         2. Create all the layers and blocks.
         '''
         super().__init__(blockname=blockname, prev_layer_or_block=prev_layer_or_block)
-        self.layers = []
 
         # MultiHeadAttention Block
         self.attn_block = MultiHeadAttentionBlock(
-            blockname=f"{blockname}_attn",
+            blockname=f"{blockname}/multihead_attention",
             units=units,
             num_heads=num_heads,
             prev_layer_or_block=prev_layer_or_block,
@@ -451,7 +451,7 @@ class TransformerBlock(block.Block):
 
         # MLP Block
         self.mlp_block = MLPBlock(
-            blockname=f"{blockname}_mlp",
+            blockname=f"{blockname}/MLP",
             units=units,
             prev_layer_or_block=self.attn_block,
             dropout_rate=dropout_rate
@@ -508,11 +508,10 @@ class PositionalEncodingBlock(block.Block):
         2. Create all the layers.
         '''
         super().__init__(blockname=blockname, prev_layer_or_block=prev_layer_or_block)
-        self.layers = []
 
         # Positional Encoding Layer
         self.pos_encoding = PositionalEncoding(
-            name=f"{blockname}_pos_encoding",
+            name=f"{blockname}/positional_enc_layer",
             embed_dim=embed_dim,
             prev_layer_or_block=prev_layer_or_block
         )
@@ -520,7 +519,7 @@ class PositionalEncodingBlock(block.Block):
 
         # Dropout Layer
         self.dropout = Dropout(
-            name=f"{blockname}_dropout",
+            name=f"{blockname}/dropout",
             rate=dropout_rate,
             prev_layer_or_block=self.pos_encoding
         )

@@ -33,7 +33,11 @@ class GPT(network.DeepNetwork):
         1. Call and pass in relevant information into the superclass constructor.
         2. Create instance variables for the method parameters as needed.
         '''
-        pass
+        super().__init__((seq_len,), reg)
+        
+        self.layers = []
+        self.seq_len = seq_len
+        self.padding_char_enc = padding_char_enc
 
     def get_one_fake_input(self):
         '''Generates a fake input for use in the `compile` method to trigger lazy initialization to initialize network
@@ -83,6 +87,7 @@ class GPT(network.DeepNetwork):
 
             # Compute the per-sample loss like usual
             act_at_correct = arange_index(out_net_act_flat, y_flat)
+            loss = -tf.math.log(act_at_correct + eps)
 
             if mask_padding_preds:
                 # We want to nix padding chars from the loss, so mask them out
@@ -114,7 +119,9 @@ class GPT(network.DeepNetwork):
 
         Hint: All layers/blocks in all GPTs are connected sequentially at the macro network level...;)
         '''
-        pass
+        for layer in self.layers:
+            x = layer(x)
+        return x
 
     def generate_sequence(self, prompt, length, char2ind_map, ind2char_map, end_char=None, method='max',
                           plot_probs=False, live_print=True):
@@ -257,7 +264,39 @@ class GPTPico1(GPT):
         1. Call and pass in relevant information into the superclass constructor.
         2. Create all the layers and blocks.
         '''
-        pass
+        super().__init__(seq_len=seq_len, padding_char_enc=padding_char_enc)
+
+        self.embedding_layer = Embedding(
+            name='EmbeddingLayer',
+            input_dim=vocab_sz,
+            embed_dim=embed_dim,
+            prev_layer_or_block=None)
+        self.layers.append(self.embedding_layer)
+        
+        self.pos_encoding_block = PositionalEncodingBlock(
+            blockname='PositionalEncodingBlock',
+            embed_dim=embed_dim,
+            prev_layer_or_block=self.embedding_layer,
+            dropout_rate=dropout_rate)
+        self.layers.append(self.pos_encoding_block)
+        
+        self.trans_block = TransformerBlock(
+            blockname='TransformerBlock_0',
+            units=embed_dim,
+            num_heads=num_heads,
+            prev_layer_or_block=self.pos_encoding_block,
+            dropout_rate=dropout_rate)
+        self.layers.append(self.trans_block)
+        
+        self.output_layer = Dense(
+            name='output',
+            units=vocab_sz,
+            activation='softmax',
+            prev_layer_or_block=self.trans_block,
+            wt_init='he',
+            do_batch_norm=False,
+            do_layer_norm=True)
+        self.layers.append(self.output_layer)
 
 
 class GPTMini6(GPT):
