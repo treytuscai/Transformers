@@ -338,7 +338,7 @@ class DeepNetwork:
         '''
         out_net_act = self(x_batch)
         loss = self.loss(out_net_act, y_batch)
-        y_pred = tf.argmax(out_net_act, axis=1, output_type=tf.int32)
+        y_pred = tf.argmax(out_net_act, axis=-1, output_type=tf.int32)
         accuracy = self.accuracy(y_batch, y_pred)
         return accuracy, loss
 
