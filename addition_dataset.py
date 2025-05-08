@@ -1,6 +1,6 @@
 '''addition_dataset.py
 Generates and preprocesses the Addition Dataset and the Addition and Multiplication Dataset
-YOUR NAMES HERE
+Trey Tuscai and Gordon Doore
 CS 444: Deep Learning
 '''
 import numpy as np
