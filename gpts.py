@@ -333,4 +333,38 @@ class GPTMini6(GPT):
         1. Call and pass in relevant information into the superclass constructor.
         2. Create all the layers and blocks.
         '''
-        pass
+        super().__init__(seq_len=seq_len, padding_char_enc=padding_char_enc)
+
+        self.embedding_layer = Embedding(
+            name='EmbeddingLayer',
+            input_dim=vocab_sz,
+            embed_dim=embed_dim,
+            prev_layer_or_block=None)
+        self.layers.append(self.embedding_layer)
+        
+        self.pos_encoding_block = PositionalEncodingBlock(
+            blockname='PositionalEncodingBlock',
+            embed_dim=embed_dim,
+            prev_layer_or_block=self.embedding_layer,
+            dropout_rate=dropout_rate)
+        self.layers.append(self.pos_encoding_block)
+        
+        for i in range(6):
+            transformer_block = TransformerBlock(
+                blockname=f'TransformerBlock_{i}',
+                units=embed_dim,
+                num_heads=num_heads,
+                prev_layer_or_block=self.layers[-1],
+                dropout_rate=dropout_rate
+            )
+            self.layers.append(transformer_block)
+        
+        self.output_layer = Dense(
+            name='output',
+            units=vocab_sz,
+            activation='softmax',
+            prev_layer_or_block=self.layers[-1],
+            wt_init='he',
+            do_batch_norm=False,
+            do_layer_norm=True)
+        self.layers.append(self.output_layer)
