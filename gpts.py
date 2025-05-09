@@ -87,6 +87,7 @@ class GPT(network.DeepNetwork):
 
             # Compute the per-sample loss like usual
             act_at_correct = arange_index(out_net_act_flat, y_flat)
+            print(tf.reshape(act_at_correct, (N, T)))
             loss = -tf.math.log(act_at_correct + eps)
 
             if mask_padding_preds:
