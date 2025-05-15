@@ -8,8 +8,10 @@ import tensorflow as tf
 import layers
 from tf_util import interleave_cols
 
+
 class Embedding(layers.Layer):
     '''Embedding layer. Takes a mini-batch of ints and for net_in extracts the weights at the specified indices.'''
+
     def __init__(self, name, input_dim, embed_dim, prev_layer_or_block=None):
         '''Embedding layer constructor.
 
@@ -54,7 +56,8 @@ class Embedding(layers.Layer):
         - Remember to turn off the bias.
         - Use He initialization.
         '''
-        self.wts = tf.Variable(tf.random.normal([input_dim, embed_dim], stddev=1.0 / tf.sqrt(float(embed_dim))))
+        self.wts = tf.Variable(tf.random.normal(
+            [input_dim, embed_dim], stddev=1.0 / tf.sqrt(float(embed_dim))))
         self.b = None
 
     def compute_net_input(self, x):
@@ -85,6 +88,7 @@ class Embedding(layers.Layer):
 
 class PositionalEncoding(layers.Layer):
     '''Positional Encoding layer that implements sin/cos position coding.'''
+
     def __init__(self, name, embed_dim, prev_layer_or_block=None):
         '''PositionalEncoding layer constructor.
 
