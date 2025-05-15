@@ -202,7 +202,7 @@ class Layer:
         net_in = self.compute_net_input(x)
         if self.do_batch_norm and self.bn_mean is not None:
             net_in = self.compute_batch_norm(net_in)
-        
+
         net_act = self.compute_net_activation(net_in)
 
         if self.output_shape is None:
@@ -339,9 +339,9 @@ class Layer:
         '''
         if not self.do_layer_norm:
             return
-        
+
         param_shape = [1] * (len(x.shape) - 1) + [x.shape[-1]]
-        
+
         # Layer norm parameters
         self.ln_gain = tf.Variable(tf.ones(param_shape), trainable=True)
         self.ln_bias = tf.Variable(tf.zeros(param_shape), trainable=True)
@@ -367,6 +367,7 @@ class Layer:
         tf.constant. tf.float32s. shape=(B, M).
             The normalized tensor with the same shape as the input tensor.
         '''
+
         layer_mean = tf.reduce_mean(x, axis=-1, keepdims=True)
         layer_stdev = tf.math.reduce_std(x, axis=-1, keepdims=True)
         normalized = (x - layer_mean) / (layer_stdev + eps)
